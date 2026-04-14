@@ -1,0 +1,8 @@
+include: mathvista_testmini_cot.yaml
+task: "mathvista_testmini_prompt_in_image"
+dataset_path: YongxinWang/math-prompt-in-image
+dataset_name: mathvista_testmini_prompt_in_image
+dataset_kwargs: {}
+test_split: testmini
+doc_to_visual: !function utils.mathvista_doc_to_visual
+doc_to_text: !function utils.mathvista_doc_to_text_minimal

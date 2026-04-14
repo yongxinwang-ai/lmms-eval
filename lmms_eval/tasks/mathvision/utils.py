@@ -1,8 +1,15 @@
 import os
+import re
 
 from loguru import logger as eval_logger
 
 from lmms_eval.llm_judge import ServerConfig, get_server
+from lmms_eval.tasks._task_utils.prompt_in_image import (
+    MINIMAL_SOLVE_PROMPT,
+    render_canvas_control_on_image,
+    render_question_on_image,
+    render_question_on_image_with_panel_crop,
+)
 
 try:
     from lmms_eval.tasks.mathvision.eval_utils import (
@@ -12,9 +19,41 @@ try:
     )
 except ImportError as e:
     eval_logger.warning(f"Error importing eval_utils from lmms_eval.tasks.mathvision.eval_utils: {e}")
-    pass
+
+    def is_number(s):
+        try:
+            float(str(s).replace(",", ""))
+            return True
+        except (TypeError, ValueError):
+            return False
+
+    def find_math_answer(text):
+        text = str(text).strip()
+        boxed = re.findall(r"\\boxed\{([^{}]+)\}", text)
+        if boxed:
+            return boxed[-1].strip()
+        numeric = re.findall(r"[-+]?\d*\.?\d+(?:/\d+)?", text.replace(",", ""))
+        if numeric:
+            return numeric[-1].strip()
+        return text
+
+    def is_equal(a, b):
+        a = str(a).strip().lower()
+        b = str(b).strip().lower()
+        if a == b:
+            return True
+        if is_number(a) and is_number(b):
+            return abs(float(a.replace(",", "")) - float(b.replace(",", ""))) < 1e-6
+        return False
 
 NUM_SECONDS_TO_SLEEP = 5
+
+
+def _get_doc_image(doc):
+    image = doc.get("decoded_image") or doc.get("image")
+    if image is None:
+        raise KeyError("Expected `decoded_image` or `image` in dataset document")
+    return image.convert("RGB")
 
 # Initialize the judge server
 API_TYPE = os.getenv("API_TYPE", "openai")
@@ -27,7 +66,30 @@ server = get_server(server_name=API_TYPE, config=server_config)
 
 
 def mathvision_doc_to_visual(doc):
-    return [doc["decoded_image"].convert("RGB")]
+    return [_get_doc_image(doc)]
+
+
+def mathvision_doc_to_visual_prompt_in_image(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    return [render_question_on_image(image, question)]
+
+
+def mathvision_doc_to_visual_prompt_in_image_qpad(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    full_image, panel_crop = render_question_on_image_with_panel_crop(image, question)
+    return [full_image, panel_crop]
+
+
+def mathvision_doc_to_visual_canvas_control(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    return [render_canvas_control_on_image(image, question)]
+
+
+def mathvision_doc_to_text_minimal(doc, lmms_eval_specific_kwargs=None):
+    return MINIMAL_SOLVE_PROMPT
 
 
 def mathvision_doc_to_text(doc, lmms_eval_specific_kwargs=None):

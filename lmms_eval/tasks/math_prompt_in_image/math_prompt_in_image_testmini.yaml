@@ -1,0 +1,6 @@
+group: math_prompt_in_image_testmini
+task:
+  - mathvision_testmini_prompt_in_image
+  - mathvista_testmini_prompt_in_image
+metadata:
+  version: 0.1

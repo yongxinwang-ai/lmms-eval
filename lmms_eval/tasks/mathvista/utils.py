@@ -3,6 +3,12 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from lmms_eval.tasks._task_utils.prompt_in_image import (
+    MINIMAL_SOLVE_PROMPT,
+    render_canvas_control_on_image,
+    render_question_on_image,
+    render_question_on_image_with_panel_crop,
+)
 from lmms_eval.tasks.mathvista.mathvista_evals import MathVistaEvaluator
 
 with open(Path(__file__).parent / "mathvista.yaml", "r") as f:
@@ -19,8 +25,47 @@ with open(Path(__file__).parent / "mathvista.yaml", "r") as f:
 mathvista_evaluator = MathVistaEvaluator()
 
 
+def _get_doc_image(doc):
+    image = doc.get("decoded_image") or doc.get("image")
+    if image is None:
+        raise KeyError("Expected `decoded_image` or `image` in dataset document")
+    return image.convert("RGB")
+
+
+def _get_doc_question_id(doc):
+    question_id = doc.get("question_id")
+    if question_id is None:
+        question_id = doc.get("pid")
+    if question_id is None:
+        raise KeyError("Expected `question_id` or legacy `pid` in dataset document")
+    return question_id
+
+
 def mathvista_doc_to_visual(doc):
-    return [doc["decoded_image"].convert("RGB")]
+    return [_get_doc_image(doc)]
+
+
+def mathvista_doc_to_visual_prompt_in_image(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    return [render_question_on_image(image, question)]
+
+
+def mathvista_doc_to_visual_prompt_in_image_qpad(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    full_image, panel_crop = render_question_on_image_with_panel_crop(image, question)
+    return [full_image, panel_crop]
+
+
+def mathvista_doc_to_visual_canvas_control(doc, lmms_eval_specific_kwargs=None):
+    image = _get_doc_image(doc)
+    question = doc.get("question", "")
+    return [render_canvas_control_on_image(image, question)]
+
+
+def mathvista_doc_to_text_minimal(doc, lmms_eval_specific_kwargs=None):
+    return MINIMAL_SOLVE_PROMPT
 
 
 def mathvista_doc_to_text(doc, lmms_eval_specific_kwargs=None):
@@ -62,7 +107,7 @@ def mathvista_process_results(doc, results):
     true_false = mathvista_evaluator.safe_equal(prediction, problem["answer"]) if problem["answer"] is not None else False
 
     result = {
-        "question_id": doc["pid"],
+        "question_id": _get_doc_question_id(doc),
         "query": doc["query"],
         "choices": doc["choices"],
         "answer": doc["answer"] if "answer" in doc else None,
