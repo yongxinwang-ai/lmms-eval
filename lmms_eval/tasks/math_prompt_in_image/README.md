@@ -18,10 +18,25 @@ The dataset stores the rendered prompt-in-image artwork directly in `decoded_ima
 
 ## Run the Benchmark
 
+The quickest way is to use the dedicated example script:
+
+```bash
+bash examples/models/qwen3vl_math_prompt_in_image.sh
+```
+
+The script includes separate sections for:
+
+- the benchmark group `math_prompt_in_image_testmini`
+- the two single tasks
+
+It also supports environment overrides such as `MODEL`, `TASKS`, `NUM_PROCESSES`, and `OUTPUT_PATH`.
+
+If you want to run the command directly:
+
 ```bash
 accelerate launch -m lmms_eval \
-  --model qwen2_vl \
-  --model_args pretrained=Qwen/Qwen2-VL-7B-Instruct,attn_implementation=sdpa \
+  --model qwen3_vl \
+  --model_args pretrained=Qwen/Qwen3-VL-4B-Instruct,attn_implementation=flash_attention_2,interleave_visuals=False \
   --tasks math_prompt_in_image_testmini \
   --batch_size 1
 ```
@@ -30,8 +45,8 @@ You can also run the two tasks directly:
 
 ```bash
 accelerate launch -m lmms_eval \
-  --model qwen2_vl \
-  --model_args pretrained=Qwen/Qwen2-VL-7B-Instruct,attn_implementation=sdpa \
+  --model qwen3_vl \
+  --model_args pretrained=Qwen/Qwen3-VL-4B-Instruct,attn_implementation=flash_attention_2,interleave_visuals=False \
   --tasks mathvision_testmini_prompt_in_image,mathvista_testmini_prompt_in_image \
   --batch_size 1
 ```
